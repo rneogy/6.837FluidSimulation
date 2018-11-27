@@ -11,6 +11,39 @@ function fluidSimulator() {
   /**
    * Initializing constants & options
    **/
+  let options = {}
+
+  options.initVFn = options.initVFn || [
+    'sin(2.0 * 3.1415 * y)',
+    'sin(2.0 * 3.1415 * x)'
+  ];
+
+  options.initCFn = options.initCFn || [
+    'step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))',
+    'step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))',
+    'step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))'
+  ];
+
+  if (options.threshold === undefined) {
+    options.threshold = false;
+  }
+
+  if (options.advectV === undefined) {
+    options.advectV = true;
+  }
+
+  if (options.applyPressure === undefined) {
+    options.applyPressure = true;
+  }
+
+  if (options.showArrows === undefined) {
+    options.showArrows = true;
+  }
+
+  if (options.dyeSpots === undefined) {
+    options.dyeSpots = true;
+  }
+
   // We'll just deal with a square for now
   const WIDTH = 400.0;
   const HEIGHT = WIDTH;
@@ -23,6 +56,8 @@ function fluidSimulator() {
   const DENSITY = 1.0;
 
   const canvas = document.querySelector("#glcanvas");
+  canvas.style.margin = "0 auto";
+  canvas.style.display = "block";
   const gl = getWebGL(); // Initialize the GL context
 
   function getWebGL() {
@@ -498,13 +533,13 @@ function fluidSimulator() {
 
   // FIXME: I made these all set strings when it was originally options
   var initVFnPainter = makeFunctionPainter(
-    "sin(2.0 * 3.1415 * y)",
-    "sin(2.0 * 3.1415 * x)"
+    options.initVFn[0],
+    options.initVFn[1]
   );
   var initCFnPainter = makeFunctionPainter(
-    "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-    "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-    "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))"
+    options.initCFn[0],
+    options.initCFn[1],
+    options.initCFn[2]
   );
 
   var reset = function() {
@@ -544,53 +579,53 @@ function fluidSimulator() {
 
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // if (options.threshold) {
-    drawTextureThreshold(textures.color0);
-    // } else {
-    // drawTexture(textures.color0);
-    // }
+    if (options.threshold) {
+      drawTextureThreshold(textures.color0);
+    } else {
+      drawTexture(textures.color0);
+    }
 
-    // if (options.showArrows) {
-    drawVectorFieldArrows(textures.velocity0);
-    // }
+    if (options.showArrows) {
+      drawVectorFieldArrows(textures.velocity0);
+    }
   };
 
   gl.onupdate = function() {
     // If the canvas isn't fully on-screen, don't run the simulation
     if (!onScreen(true)) return;
 
-    // if (options.advectV) {
+    if (options.advectV) {
     //   // Advect the velocity texture through itself, leaving the result in
     //   // textures.velocity0
-    //   textures.velocity1.drawTo(function() {
-    //     advect(textures.velocity0, textures.velocity0);
-    //   });
-    //   textures.swap("velocity0", "velocity1");
-    // }
-
-    // if (options.applyPressure) {
-    // Calculate the divergence, leaving the result in textures.divergence
-    textures.divergence.drawTo(function() {
-      calcDivergence(textures.velocity0);
-    });
-
-    // Calculate the pressure, leaving the result in textures.pressure0
-    var JACOBI_ITERATIONS = 10;
-
-    for (var i = 0; i < JACOBI_ITERATIONS; i++) {
-      textures.pressure1.drawTo(function() {
-        jacobiIterationForPressure(textures.divergence, textures.pressure0);
+      textures.velocity1.drawTo(function() {
+        advect(textures.velocity0, textures.velocity0);
       });
-      textures.swap("pressure0", "pressure1");
+      textures.swap("velocity0", "velocity1");
     }
 
-    // Subtract the pressure gradient from the advected velocity texture,
-    // leaving the result in textures.velocity0
-    textures.velocity1.drawTo(function() {
-      subtractPressureGradient(textures.velocity0, textures.pressure0);
-    });
-    textures.swap("velocity0", "velocity1");
-    // }
+    if (options.applyPressure) {
+      // Calculate the divergence, leaving the result in textures.divergence
+      textures.divergence.drawTo(function() {
+        calcDivergence(textures.velocity0);
+      });
+
+      // Calculate the pressure, leaving the result in textures.pressure0
+      var JACOBI_ITERATIONS = 10;
+
+      for (var i = 0; i < JACOBI_ITERATIONS; i++) {
+        textures.pressure1.drawTo(function() {
+          jacobiIterationForPressure(textures.divergence, textures.pressure0);
+        });
+        textures.swap("pressure0", "pressure1");
+      }
+
+      // Subtract the pressure gradient from the advected velocity texture,
+      // leaving the result in textures.velocity0
+      textures.velocity1.drawTo(function() {
+        subtractPressureGradient(textures.velocity0, textures.pressure0);
+      });
+      textures.swap("velocity0", "velocity1");
+    }
 
     // Advect the color field, leaving the result in textures.color0
     textures.color1.drawTo(function() {
@@ -598,25 +633,25 @@ function fluidSimulator() {
     });
     textures.swap("color0", "color1");
 
-    // if (options.dyeSpots) {
-    //   // Add a few spots slowly emitting dye to prevent the color from
-    //   // eventually converging to the grey-ish average color of the whole fluid
-    //   var addDyeSource = function(color, location) {
-    //     textures.color1.drawTo(function() {
-    //       addSplat(textures.color0, color.concat([0.0]), location, 0.01);
-    //     });
-    //     textures.swap("color0", "color1");
-    //   };
-    //
-    //   // Add red to bottom left
-    //   addDyeSource([0.004, -0.002, -0.002], [0.2, 0.2]);
-    //
-    //   // Add blue to the top middle
-    //   addDyeSource([-0.002, -0.002, 0.004], [0.5, 0.9]);
-    //
-    //   // Add green to the bottom right
-    //   addDyeSource([-0.002, 0.004, -0.002], [0.8, 0.2]);
-    // }
+    if (options.dyeSpots) {
+      // Add a few spots slowly emitting dye to prevent the color from
+      // eventually converging to the grey-ish average color of the whole fluid
+      var addDyeSource = function(color, location) {
+        textures.color1.drawTo(function() {
+          addSplat(textures.color0, color.concat([0.0]), location, 0.01);
+        });
+        textures.swap("color0", "color1");
+      };
+    
+      // Add red to bottom left
+      addDyeSource([0.004, -0.002, -0.002], [0.2, 0.2]);
+    
+      // Add blue to the top middle
+      addDyeSource([-0.002, -0.002, 0.004], [0.5, 0.9]);
+    
+      // Add green to the bottom right
+      addDyeSource([-0.002, 0.004, -0.002], [0.8, 0.2]);
+    }
   };
 
   gl.animate();
