@@ -273,7 +273,6 @@ const advectShader = (() => {
       void main() {
         vec2 u = texture2D(velocity, textureCoord).xy;
 
-        // vec2 pastCoord = fract(textureCoord - (0.5 * deltaT * u));
         vec2 pastCoord = textureCoord - (0.5 * deltaT * u);
         gl_FragColor = texture2D(inputTexture, pastCoord);
       }
@@ -320,8 +319,8 @@ const clampColors = (() => {
  * Calculate the divergence of the advected velocity field, and multiply by
  * (2 * epsilon * rho / deltaT). Credit: [1]
  **/
-var calcDivergence = (() => {
-  var shader = new gl.Shader(
+const calcDivergence = (() => {
+  let shader = new gl.Shader(
     standardVertexShaderSrc,
     `
       uniform float deltaT;         // Time between steps
@@ -367,8 +366,8 @@ var calcDivergence = (() => {
 
 // Perform a single iteration of the Jacobi method in order to solve for
 // pressure. Credit: [1]
-var jacobiIterationForPressure = (() => {
-  var shader = new gl.Shader(
+const jacobiIterationForPressure = (() => {
+  let shader = new gl.Shader(
     standardVertexShaderSrc,
     `
       uniform float epsilon;        // Distance between grid units
@@ -383,12 +382,10 @@ var jacobiIterationForPressure = (() => {
       }
 
       float d(vec2 coord) {
-        // return texture2D(divergence, fract(coord)).x;
         return texture2D(divergence, coord).x;
       }
 
       float p(vec2 coord) {
-        // return texture2D(pressure, fract(coord)).x;
         return texture2D(pressure, coord).x;
       }
 
@@ -417,8 +414,8 @@ var jacobiIterationForPressure = (() => {
 
 // Subtract the pressure gradient times a constant from the advected velocity
 // field. Credit: [1]
-var subtractPressureGradient = (() => {
-  var shader = new gl.Shader(
+const subtractPressureGradient = (() => {
+  let shader = new gl.Shader(
     standardVertexShaderSrc,
     `
       uniform float deltaT;         // Time between steps
@@ -436,7 +433,6 @@ var subtractPressureGradient = (() => {
 
       float p(vec2 coord) {
         return texture2D(pressure, coord).x;
-        // return texture2D(pressure, fract(coord)).x;
       }
 
       void main() {
@@ -472,8 +468,8 @@ var subtractPressureGradient = (() => {
   };
 })();
 
-var makeTextures = names => {
-  var ret = {};
+const makeTextures = names => {
+  let ret = {};
   names.forEach(function(name) {
     ret[name] = new gl.Texture(WIDTH, HEIGHT, { type: gl.FLOAT });
   });
@@ -487,7 +483,7 @@ var makeTextures = names => {
   return ret;
 };
 
-var textures = makeTextures([
+const textures = makeTextures([
   "velocity0",
   "velocity1",
   "color0",
@@ -606,8 +602,8 @@ gl.onupdate = function() {
   if (!onScreen(true)) return;
 
   if (options.advectV) {
-    //   // Advect the velocity texture through itself, leaving the result in
-    //   // textures.velocity0
+    // Advect the velocity texture through itself, leaving the result in
+    // textures.velocity0
     textures.velocity1.drawTo(function() {
       advectShader(textures.velocity0, textures.velocity0);
     });
