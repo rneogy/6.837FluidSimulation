@@ -332,8 +332,13 @@ var calcDivergence = (() => {
       varying vec2 textureCoord;
 
       vec2 u(vec2 coord) {
-        return texture2D(velocity, coord).xy;
-        // return texture2D(velocity, fract(coord)).xy;
+        // for wall collisions
+        vec2 multiplier = vec2(1.0,1.0);
+        if (coord.x < 0.0) { coord.x = 0.0; multiplier.x = -1.0; }
+        if (coord.x > 1.0) { coord.x = 1.0; multiplier.x = -1.0; }
+        if (coord.y < 0.0) { coord.y = 0.0; multiplier.y = -1.0; }
+        if (coord.y > 1.0) { coord.y = 1.0; multiplier.y = -1.0; }
+        return multiplier * texture2D(velocity, coord).xy;
       }
 
       void main() {
