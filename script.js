@@ -299,6 +299,7 @@ const advectShader = (() => {
 
         // Take the current color if outside
         if (outside(pastCoord.x, pastCoord.y)) {
+          // FIXME: SAMPLING WALL COLOR
           gl_FragColor = texture2D(inputTexture, textureCoord);
         } else {
           gl_FragColor = texture2D(inputTexture, pastCoord);
@@ -364,11 +365,6 @@ const calcDivergence = (() => {
       vec2 u(vec2 coord) {
         // for outer wall collisions
         vec2 multiplier = vec2(1.0,1.0);
-        // if (coord.x < 0.0) { coord.x = 0.0; multiplier.x = -1.0; }
-        // if (coord.x > 1.0) { coord.x = 1.0; multiplier.x = -1.0; }
-        // if (coord.y < 0.0) { coord.y = 0.0; multiplier.y = -1.0; }
-        // if (coord.y > 1.0) { coord.y = 1.0; multiplier.y = -1.0; }
-
         if (coord.x < ${LOWER_BOUND}) { coord.x = ${LOWER_BOUND}; multiplier.x = -1.0; }
         if (coord.x > ${UPPER_BOUND}) { coord.x = ${UPPER_BOUND}; multiplier.x = -1.0; }
         if (coord.y < ${LOWER_BOUND}) { coord.y = ${LOWER_BOUND}; multiplier.y = -1.0; }
@@ -476,7 +472,7 @@ const subtractPressureGradient = (() => {
       ${OUTSIDE_SRC}
 
       vec2 boundary (in vec2 coord) {
-        coord = clamp(coord, 0.0, 1.0);
+        coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
         return coord;
       }
 
