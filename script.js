@@ -7,9 +7,10 @@
 
 /**
  * Credits Reference
- * used as base code in project
+ * base code, equations, etc
  * [1]: https://github.com/jlfwong/blog/blob/master/static/javascripts/fluid-sim.js
  * [2]: https://github.com/PavelDoGreat/WebGL-Fluid-Simulation/blob/master/script.js
+ * [3]: https://math.stackexchange.com/questions/127613/closest-point-on-circle-edge-from-point-outside-inside-the-circle
  **/
 
 "use strict";
@@ -55,16 +56,45 @@ const WIDTH = 600.0;
 const HEIGHT = WIDTH;
 const EPSILON = 1.0 / WIDTH;
 
-// Ignoring forces on the outside
-const LOWER_BOUND = `0.25`;
-const UPPER_BOUND = `0.75`;
+//
+// TODO: Binding walls
+//
+const LOWER_BOUND = `0.25`; // wall bounds for square in mesh coords
+const UPPER_BOUND = `0.75`; // wall bounds for square in mesh coords
+
+// wall bounds for circle in mesh coords
+// Equation Credit: [3]
+const GET_WALL_COORD_SRC = `
+float sqr(float x) {return x*x;}
+
+vec2 closestWall(vec2 a) {
+  vec2 wall;
+  vec2 c = vec2(0.5, 0.5); // center of circle
+  float r = 0.25; // radius of circle
+
+  wall = c + r * (a - c) / sqrt(abs(sqr((a - c).x) + sqr((a - c).y)));
+  return wall;
+}
+`;
+
+// bounding initial vec field in mesh vertices
 const PAINTER_OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return (x > -0.5 && y > -0.5 && x < 0.5 && y < 0.5);
+  return (x*x + y*y < 0.5);
+
+  // square wall code
+  // return (x > -0.5 && y > -0.5 && x < 0.5 && y < 0.5);
 }`;
+
+// bounding other forces in mesh coords
 const OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return !(x > ${LOWER_BOUND} && y > ${LOWER_BOUND} && x < ${UPPER_BOUND} && y < ${UPPER_BOUND});
+  float nx = x - 0.5;
+  float ny = y - 0.5;
+  return (nx*nx + ny*ny > 0.25*0.25);
+
+  // square wall code
+  // return !(x > ${LOWER_BOUND} && y > ${LOWER_BOUND} && x < ${UPPER_BOUND} && y < ${UPPER_BOUND});
 }`;
 
 // We'll use 120th of a second as each timestep
@@ -200,8 +230,6 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
         }
       }
     `;
-
-    console.log(painterSrc);
   } else {
     painterSrc =
       `
@@ -361,14 +389,25 @@ const calcDivergence = (() => {
       varying vec2 textureCoord;
 
       ${OUTSIDE_SRC}
+      ${GET_WALL_COORD_SRC}
 
       vec2 u(vec2 coord) {
         // for outer wall collisions
         vec2 multiplier = vec2(1.0,1.0);
+        vec2 wall = closestWall(coord);
+
+        // circular wall collisions
+        // if (outside(coord.x, coord,y)) {
+        //   coord = wall; // stick to closest wall
+        //   // get opposing force
+        // }
+
+        // square wall collisions
         if (coord.x < ${LOWER_BOUND}) { coord.x = ${LOWER_BOUND}; multiplier.x = -1.0; }
         if (coord.x > ${UPPER_BOUND}) { coord.x = ${UPPER_BOUND}; multiplier.x = -1.0; }
         if (coord.y < ${LOWER_BOUND}) { coord.y = ${LOWER_BOUND}; multiplier.y = -1.0; }
         if (coord.y > ${UPPER_BOUND}) { coord.y = ${UPPER_BOUND}; multiplier.y = -1.0; }
+
         return multiplier * texture2D(velocity, coord).xy;
       }
 
@@ -413,9 +452,12 @@ const jacobiIterationForPressure = (() => {
       varying vec2 textureCoord;
 
       ${OUTSIDE_SRC}
+      ${GET_WALL_COORD_SRC}
 
       vec2 boundary (in vec2 coord) {
-        coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
+        // coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
+
+        coord = closestWall(coord);
         return coord;
       }
 
@@ -470,9 +512,12 @@ const subtractPressureGradient = (() => {
       varying vec2 textureCoord;
 
       ${OUTSIDE_SRC}
+      ${GET_WALL_COORD_SRC}
 
       vec2 boundary (in vec2 coord) {
-        coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
+        // coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
+
+        coord = closestWall(coord);
         return coord;
       }
 
