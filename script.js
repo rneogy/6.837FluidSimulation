@@ -21,15 +21,16 @@
 //
 let options = {
   dyeSpots: false
+  // showArrows: false
   // applyPressure: false
 };
 
 // Default options
 options.initVFn = options.initVFn || [
-  // "y",
-  // "1"
-  "sin(2.0 * 3.1415 * y)",
-  "sin(2.0 * 3.1415 * x)"
+  "0",
+  "0"
+  // "sin(2.0 * 3.1415 * y)",
+  // "sin(2.0 * 3.1415 * x)"
 ]; // Initial vector field
 options.initCFn = options.initCFn || [
   "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
@@ -81,7 +82,7 @@ vec2 closestWall(vec2 a) {
 // bounding initial vec field in mesh vertices
 const PAINTER_OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return (x*x + y*y < 0.5);
+  return (x*x + y*y < 0.5*0.5);
 
   // square wall code
   // return (x > -0.5 && y > -0.5 && x < 0.5 && y < 0.5);
@@ -329,7 +330,7 @@ const advectShader = (() => {
         // Take the current color if outside
         // if (outside(pastCoord.x, pastCoord.y)) {
           // FIXME: SAMPLING WALL COLOR
-          // gl_FragColor = texture2D(inputTexture, textureCoord);
+        //   gl_FragColor = texture2D(inputTexture, textureCoord);
         // } else {
           gl_FragColor = texture2D(inputTexture, pastCoord);
         // }
@@ -394,7 +395,7 @@ const calcDivergence = (() => {
 
       vec2 u(vec2 coord) {
         // for outer wall collisions
-        vec2 multiplier = vec2(1.0,1.0);
+        // vec2 multiplier = vec2(1.0,1.0);
         vec2 wall = closestWall(coord);
 
         // circular wall collisions
@@ -403,10 +404,10 @@ const calcDivergence = (() => {
 
           // get opposing force
           vec2 v = texture2D(velocity, coord).xy; // initial velocity
-          vec2 n = normalize(wall - vec2(0.5, 0.5)); // normal reflected across
+          vec2 n = normalize(vec2(0.5, 0.5) - wall); // normal reflected across
           vec2 r = v - 2.0 * dot(v, n) * n; // reflected velocity
 
-          return r;
+          return r.xy;
         }
 
         // square wall collisions
@@ -415,7 +416,7 @@ const calcDivergence = (() => {
         // if (coord.y < ${LOWER_BOUND}) { coord.y = ${LOWER_BOUND}; multiplier.y = -1.0; }
         // if (coord.y > ${UPPER_BOUND}) { coord.y = ${UPPER_BOUND}; multiplier.y = -1.0; }
 
-        return multiplier * texture2D(velocity, coord).xy;
+        return texture2D(velocity, coord).xy;
       }
 
       void main() {
@@ -643,7 +644,9 @@ var initVFnPainter = makeFunctionPainter(
 var initCFnPainter = makeFunctionPainter(
   options.initCFn[0],
   options.initCFn[1],
-  options.initCFn[2]
+  options.initCFn[2],
+  0.0,
+  true
 );
 
 //
