@@ -11,6 +11,7 @@
  * [1]: https://github.com/jlfwong/blog/blob/master/static/javascripts/fluid-sim.js
  * [2]: https://github.com/PavelDoGreat/WebGL-Fluid-Simulation/blob/master/script.js
  * [3]: https://math.stackexchange.com/questions/127613/closest-point-on-circle-edge-from-point-outside-inside-the-circle
+ * [4]: https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
  **/
 
 "use strict";
@@ -69,8 +70,8 @@ float sqr(float x) {return x*x;}
 
 vec2 closestWall(vec2 a) {
   vec2 wall;
-  vec2 c = vec2(0.5, 0.5); // center of circle
-  float r = 0.25; // radius of circle
+  vec2 c = vec2(0.5, 0.5);  // center of circle
+  float r = 0.25;           // radius of circle
 
   wall = c + r * (a - c) / sqrt(abs(sqr((a - c).x) + sqr((a - c).y)));
   return wall;
@@ -326,12 +327,12 @@ const advectShader = (() => {
         vec2 pastCoord = textureCoord - (0.5 * deltaT * u);
 
         // Take the current color if outside
-        if (outside(pastCoord.x, pastCoord.y)) {
+        // if (outside(pastCoord.x, pastCoord.y)) {
           // FIXME: SAMPLING WALL COLOR
-          gl_FragColor = texture2D(inputTexture, textureCoord);
-        } else {
+          // gl_FragColor = texture2D(inputTexture, textureCoord);
+        // } else {
           gl_FragColor = texture2D(inputTexture, pastCoord);
-        }
+        // }
       }
     `
   );
@@ -375,7 +376,7 @@ const clampColors = (() => {
 /**
  * Calculate the divergence of the advected velocity field, and multiply by
  * (2 * epsilon * rho / deltaT). Base Code Credit: [1]
- * Modified shader code for wall collisions
+ * Modified shader code for wall collisions. Opposing Force Credit: [4]
  **/
 const calcDivergence = (() => {
   let shader = new gl.Shader(
@@ -397,16 +398,22 @@ const calcDivergence = (() => {
         vec2 wall = closestWall(coord);
 
         // circular wall collisions
-        // if (outside(coord.x, coord,y)) {
-        //   coord = wall; // stick to closest wall
-        //   // get opposing force
-        // }
+        if (outside(coord.x, coord.y)) {
+          coord = wall; // stick to closest wall
+
+          // get opposing force
+          vec2 v = texture2D(velocity, coord).xy; // initial velocity
+          vec2 n = normalize(wall - vec2(0.5, 0.5)); // normal reflected across
+          vec2 r = v - 2.0 * dot(v, n) * n; // reflected velocity
+
+          return r;
+        }
 
         // square wall collisions
-        if (coord.x < ${LOWER_BOUND}) { coord.x = ${LOWER_BOUND}; multiplier.x = -1.0; }
-        if (coord.x > ${UPPER_BOUND}) { coord.x = ${UPPER_BOUND}; multiplier.x = -1.0; }
-        if (coord.y < ${LOWER_BOUND}) { coord.y = ${LOWER_BOUND}; multiplier.y = -1.0; }
-        if (coord.y > ${UPPER_BOUND}) { coord.y = ${UPPER_BOUND}; multiplier.y = -1.0; }
+        // if (coord.x < ${LOWER_BOUND}) { coord.x = ${LOWER_BOUND}; multiplier.x = -1.0; }
+        // if (coord.x > ${UPPER_BOUND}) { coord.x = ${UPPER_BOUND}; multiplier.x = -1.0; }
+        // if (coord.y < ${LOWER_BOUND}) { coord.y = ${LOWER_BOUND}; multiplier.y = -1.0; }
+        // if (coord.y > ${UPPER_BOUND}) { coord.y = ${UPPER_BOUND}; multiplier.y = -1.0; }
 
         return multiplier * texture2D(velocity, coord).xy;
       }
