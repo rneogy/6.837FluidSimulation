@@ -60,7 +60,8 @@ const LOWER_BOUND = `0.25`;
 const UPPER_BOUND = `0.75`;
 const PAINTER_OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return (x > -0.5 && y > -0.5 && x < 0.5 && y < 0.5);
+  return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
+  1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
 }`;
 const OUTSIDE_SRC = `
 bool outside(float x, float y) {
@@ -200,8 +201,6 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
         }
       }
     `;
-
-    console.log(painterSrc);
   } else {
     painterSrc =
       `
@@ -298,12 +297,12 @@ const advectShader = (() => {
         vec2 pastCoord = textureCoord - (0.5 * deltaT * u);
 
         // Take the current color if outside
-        if (outside(pastCoord.x, pastCoord.y)) {
+        // if (outside(pastCoord.x, pastCoord.y)) {
           // FIXME: SAMPLING WALL COLOR
-          gl_FragColor = texture2D(inputTexture, textureCoord);
-        } else {
+          // gl_FragColor = texture2D(inputTexture, textureCoord);
+        // } else {
           gl_FragColor = texture2D(inputTexture, pastCoord);
-        }
+        // }
       }
     `
   );
@@ -434,11 +433,7 @@ const jacobiIterationForPressure = (() => {
         vec2 B = boundary(textureCoord - vec2(0.0, 2.0 * epsilon)); // bottom
         float pressure = 0.25 * (d(textureCoord)+ p(L)+ p(R)+ p(T)+ p(B));
 
-        if (outside(textureCoord.x, textureCoord.y)) {
-          gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        } else {
-          gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
-        }
+        gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
       }
     `
   );
@@ -591,7 +586,9 @@ var initVFnPainter = makeFunctionPainter(
 var initCFnPainter = makeFunctionPainter(
   options.initCFn[0],
   options.initCFn[1],
-  options.initCFn[2]
+  options.initCFn[2],
+  0.0,
+  true
 );
 
 //
