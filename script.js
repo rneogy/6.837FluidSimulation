@@ -55,17 +55,43 @@ const WIDTH = 600.0;
 const HEIGHT = WIDTH;
 const EPSILON = 1.0 / WIDTH;
 
-// Ignoring forces on the outside
+//
+// TODO: Binding walls
+//
 const LOWER_BOUND = `0.25`;
 const UPPER_BOUND = `0.75`;
+const RADIUS = `0.25`;
+
+// wall bounds for circle in mesh coords
+// Equation Credit: [3]
+const GET_WALL_COORD_SRC = `
+float sqr(float x) {return x*x;}
+vec2 closestWall(vec2 a) {
+  vec2 wall;
+  vec2 c = vec2(0.5, 0.5);  // center of circle
+  float r = 0.25;           // radius of circle
+  wall = c + r * (a - c) / sqrt(abs(sqr((a - c).x) + sqr((a - c).y)));
+  return wall;
+}
+`;
+
+// bounding initial vec field in mesh vertices
 const PAINTER_OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
+  // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
   1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
-}`;
+
+  return (x*x + y*y < ${RADIUS}*${RADIUS} * 2.0);
+}
+`;
+// bounding other forces in mesh coords
 const OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return !(x > ${LOWER_BOUND} && y > ${LOWER_BOUND} && x < ${UPPER_BOUND} && y < ${UPPER_BOUND});
+  // return !(x > ${LOWER_BOUND} && y > ${LOWER_BOUND} && x < ${UPPER_BOUND} && y < ${UPPER_BOUND});
+
+  float nx = x - 0.5;
+  float ny = y - 0.5;
+  return (nx*nx + ny*ny > ${RADIUS}*${RADIUS});
 }`;
 
 // We'll use 120th of a second as each timestep
@@ -587,8 +613,8 @@ var initCFnPainter = makeFunctionPainter(
   options.initCFn[0],
   options.initCFn[1],
   options.initCFn[2],
-  0.0,
-  true
+  0.0
+  // true
 );
 
 //
@@ -720,7 +746,7 @@ canvas.addEventListener("dblclick", reset);
 
 // Mouse interaction onclick. Credit: [1]
 gl.onmousemove = function(ev) {
-  if (ev.dragging) {
+  if (ev.dragging && ev.x > 150 && ev.x < 450 && ev.y > 150 && ev.y < 450) {
     textures.velocity1.drawTo(function() {
       addSplat(
         textures.velocity0,
