@@ -18,7 +18,8 @@
 // TODO: Initializing constants & options
 //
 let options = {
-  dyeSpots: false
+  dyeSpots: false,
+  showArrows: false
   // applyPressure: false
 };
 
@@ -33,9 +34,9 @@ options.initCFn = options.initCFn || [
   // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
   // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
   // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))"
-  ".1718",
-  ".1289",
-  ".0820"
+  (124 / 256).toString(),
+  (88 / 256).toString(),
+  (82 / 256).toString()
 ];
 if (options.threshold === undefined) {
   options.threshold = false;
@@ -52,6 +53,13 @@ if (options.showArrows === undefined) {
 if (options.dyeSpots === undefined) {
   options.dyeSpots = true;
 }
+
+const CHECKERS = [
+  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
+  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
+  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
+  "0.0"
+];
 
 // We'll just deal with a square for now
 const WIDTH = 600.0;
@@ -238,7 +246,7 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
         // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
       1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
 
-        return (x*x + y*y < (${RADIUS} + 0.05)*(${RADIUS}+0.05) * 4.0);
+        return (x*x + y*y < (${RADIUS} + 0.005)*(${RADIUS}+0.005) * 4.0);
       }
 
       void main() {
@@ -247,7 +255,7 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
         if (outside(x, y)) {
           gl_FragColor = vec4(${[r, g, b, a].join(",")});
         } else {
-          gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+          gl_FragColor = vec4(${CHECKERS.join(",")});
         }
       }
     `;
@@ -614,18 +622,21 @@ const addSplat = (function() {
 })();
 
 // Binding the initial forces to not be outside of boundaries
-var initVFnPainter = makeFunctionPainter(
+let initVFnPainter = makeFunctionPainter(
   options.initVFn[0],
   options.initVFn[1],
   0.0,
   0.0,
   true
 );
-var initCFnPainter = makeFunctionPainter(
+
+//
+// TODO: Draw textures
+//
+let initCFnPainter = makeFunctionPainter(
   options.initCFn[0],
   options.initCFn[1],
-  options.initCFn[2],
-  0.0
+  options.initCFn[2]
 );
 
 //
@@ -659,10 +670,6 @@ var onScreen = function(middleIn) {
     return containerTop < canvasBottom && containerBottom > canvasTop;
   }
 };
-
-//
-// TODO: Draw cup
-//
 
 //
 // TODO: Update and draw functionality
@@ -764,6 +771,20 @@ gl.onmousemove = function(ev) {
     return !(a * a + b * b > 0.24 * 0.24);
   }
 
+  if (ev.altKey && inside(ev.x, ev.y)) {
+    let addDyeSource = function(color, location) {
+      textures.color1.drawTo(function() {
+        addSplat(textures.color0, color.concat([0.0]), location, 0.0001);
+      });
+      textures.swap("color0", "color1");
+    };
+    addDyeSource(
+      [255 / 256, 253 / 256, 208 / 256],
+      [ev.x / WIDTH, 1 - ev.y / HEIGHT],
+      [ev.offsetX / WIDTH, 1.0 - ev.offsetY / HEIGHT]
+    );
+  }
+
   if (ev.dragging && inside(ev.x, ev.y)) {
     textures.velocity1.drawTo(function() {
       addSplat(
@@ -771,20 +792,6 @@ gl.onmousemove = function(ev) {
         [(10.0 * ev.deltaX) / WIDTH, (-10.0 * ev.deltaY) / HEIGHT, 0.0, 0.0],
         [ev.offsetX / WIDTH, 1.0 - ev.offsetY / HEIGHT],
         0.01
-      );
-
-      var addDyeSource = function(color, location) {
-        textures.color1.drawTo(function() {
-          addSplat(textures.color0, color.concat([0.0]), location, 0.0001);
-        });
-        textures.swap("color0", "color1");
-      };
-
-      // Add red to bottom left
-      addDyeSource(
-        [1.0, 1.0, 1.0],
-        [(10.0 * ev.deltaX) / WIDTH, (-10.0 * ev.deltaY) / HEIGHT, 0.0, 0.0],
-        [ev.offsetX / WIDTH, 1.0 - ev.offsetY / HEIGHT]
       );
     });
     textures.swap("velocity0", "velocity1");
