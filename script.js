@@ -24,15 +24,18 @@ let options = {
 
 // Default options
 options.initVFn = options.initVFn || [
-  // "y",
-  // "1"
-  "sin(2.0 * 3.1415 * y)",
-  "sin(2.0 * 3.1415 * x)"
+  "0",
+  "0"
+  // "sin(2.0 * 3.1415 * y)",
+  // "sin(2.0 * 3.1415 * x)"
 ]; // Initial vector field
 options.initCFn = options.initCFn || [
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))"
+  // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
+  // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
+  // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))"
+  ".1718",
+  ".1289",
+  ".0820"
 ];
 if (options.threshold === undefined) {
   options.threshold = false;
@@ -81,7 +84,7 @@ bool outside(float x, float y) {
   // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
   1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
 
-  return (x*x + y*y < ${RADIUS}*${RADIUS} * 2.0);
+  return (x*x + y*y < ${RADIUS}*${RADIUS} * 4.0);
 }
 `;
 // bounding other forces in mesh coords
@@ -228,15 +231,24 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
       }
     `;
   } else {
-    painterSrc =
-      `
+    painterSrc = `
       varying vec2 textureCoord;
+
+      bool outside(float x, float y) {
+        // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
+      1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
+
+        return (x*x + y*y < (${RADIUS} + 0.05)*(${RADIUS}+0.05) * 4.0);
+      }
+
       void main() {
         float x = 2.0 * textureCoord.x - 1.0;
         float y = 2.0 * textureCoord.y - 1.0;
-        gl_FragColor = vec4(` +
-      [r, g, b, a].join(",") +
-      `);
+        if (outside(x, y)) {
+          gl_FragColor = vec4(${[r, g, b, a].join(",")});
+        } else {
+          gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+        }
       }
     `;
   }
@@ -614,7 +626,6 @@ var initCFnPainter = makeFunctionPainter(
   options.initCFn[1],
   options.initCFn[2],
   0.0
-  // true
 );
 
 //
@@ -746,13 +757,34 @@ canvas.addEventListener("dblclick", reset);
 
 // Mouse interaction onclick. Credit: [1]
 gl.onmousemove = function(ev) {
-  if (ev.dragging && ev.x > 150 && ev.x < 450 && ev.y > 150 && ev.y < 450) {
+  function inside(x, y) {
+    let a = x / WIDTH - 0.5;
+    let b = y / HEIGHT - 0.5;
+
+    return !(a * a + b * b > 0.24 * 0.24);
+  }
+
+  if (ev.dragging && inside(ev.x, ev.y)) {
     textures.velocity1.drawTo(function() {
       addSplat(
         textures.velocity0,
         [(10.0 * ev.deltaX) / WIDTH, (-10.0 * ev.deltaY) / HEIGHT, 0.0, 0.0],
         [ev.offsetX / WIDTH, 1.0 - ev.offsetY / HEIGHT],
         0.01
+      );
+
+      var addDyeSource = function(color, location) {
+        textures.color1.drawTo(function() {
+          addSplat(textures.color0, color.concat([0.0]), location, 0.0001);
+        });
+        textures.swap("color0", "color1");
+      };
+
+      // Add red to bottom left
+      addDyeSource(
+        [1.0, 1.0, 1.0],
+        [(10.0 * ev.deltaX) / WIDTH, (-10.0 * ev.deltaY) / HEIGHT, 0.0, 0.0],
+        [ev.offsetX / WIDTH, 1.0 - ev.offsetY / HEIGHT]
       );
     });
     textures.swap("velocity0", "velocity1");
