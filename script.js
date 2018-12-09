@@ -31,12 +31,13 @@ options.initVFn = options.initVFn || [
   // "sin(2.0 * 3.1415 * x)"
 ]; // Initial vector field
 options.initCFn = options.initCFn || [
-  // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  // "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))"
-  (124 / 256).toString(),
-  (88 / 256).toString(),
-  (82 / 256).toString()
+  // Coffee color
+  // (124 / 256).toString(),
+  // (88 / 256).toString(),
+  // (82 / 256).toString()
+  (144 / 256).toString(),
+  (94 / 256).toString(),
+  (61 / 256).toString()
 ];
 if (options.threshold === undefined) {
   options.threshold = false;
@@ -54,10 +55,16 @@ if (options.dyeSpots === undefined) {
   options.dyeSpots = true;
 }
 
+const CUP = [
+  (141 / 256).toString(),
+  (163 / 256).toString(),
+  (195 / 256).toString(),
+  "0.0"
+];
 const CHECKERS = [
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
+  (246 / 256).toString(),
+  (207 / 256).toString(),
+  (202 / 256).toString(),
   "0.0"
 ];
 
@@ -242,18 +249,20 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
     painterSrc = `
       varying vec2 textureCoord;
 
-      bool outside(float x, float y) {
+      bool outside(float x, float y, float r) {
         // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
       1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
 
-        return (x*x + y*y < (${RADIUS} + 0.005)*(${RADIUS}+0.005) * 4.0);
+        return (x*x + y*y < r*r);
       }
 
       void main() {
         float x = 2.0 * textureCoord.x - 1.0;
         float y = 2.0 * textureCoord.y - 1.0;
-        if (outside(x, y)) {
+        if (outside(x, y, 0.51)) {
           gl_FragColor = vec4(${[r, g, b, a].join(",")});
+        } else if (outside(x, y, 0.6)) {
+          gl_FragColor = vec4(${CUP.join(",")});
         } else {
           gl_FragColor = vec4(${CHECKERS.join(",")});
         }
