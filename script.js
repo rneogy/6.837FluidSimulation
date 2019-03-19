@@ -7,10 +7,9 @@
 
 /**
  * Credits Reference
- * base code, equations, etc
+ * used as base code in project
  * [1]: https://github.com/jlfwong/blog/blob/master/static/javascripts/fluid-sim.js
  * [2]: https://github.com/PavelDoGreat/WebGL-Fluid-Simulation/blob/master/script.js
- * [3]: https://math.stackexchange.com/questions/127613/closest-point-on-circle-edge-from-point-outside-inside-the-circle
  **/
 
 "use strict";
@@ -19,21 +18,26 @@
 // TODO: Initializing constants & options
 //
 let options = {
-  dyeSpots: false
+  dyeSpots: false,
+  showArrows: false
   // applyPressure: false
 };
 
 // Default options
 options.initVFn = options.initVFn || [
-  // "y",
-  // "1"
-  "sin(2.0 * 3.1415 * y)",
-  "sin(2.0 * 3.1415 * x)"
+  "0",
+  "0"
+  // "sin(2.0 * 3.1415 * y)",
+  // "sin(2.0 * 3.1415 * x)"
 ]; // Initial vector field
 options.initCFn = options.initCFn || [
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))",
-  "step(1.0, mod(floor((x + 1.0) / 0.2) + floor((y + 1.0) / 0.2), 2.0))"
+  // Coffee color
+  // (124 / 256).toString(),
+  // (88 / 256).toString(),
+  // (82 / 256).toString()
+  (144 / 256).toString(),
+  (94 / 256).toString(),
+  (61 / 256).toString()
 ];
 if (options.threshold === undefined) {
   options.threshold = false;
@@ -51,6 +55,19 @@ if (options.dyeSpots === undefined) {
   options.dyeSpots = true;
 }
 
+const CUP = [
+  (141 / 256).toString(),
+  (163 / 256).toString(),
+  (195 / 256).toString(),
+  "0.0"
+];
+const CHECKERS = [
+  (246 / 256).toString(),
+  (207 / 256).toString(),
+  (202 / 256).toString(),
+  "0.0"
+];
+
 // We'll just deal with a square for now
 const WIDTH = 600.0;
 const HEIGHT = WIDTH;
@@ -59,19 +76,18 @@ const EPSILON = 1.0 / WIDTH;
 //
 // TODO: Binding walls
 //
-const LOWER_BOUND = `0.25`; // wall bounds for square in mesh coords
-const UPPER_BOUND = `0.75`; // wall bounds for square in mesh coords
+const LOWER_BOUND = `0.25`;
+const UPPER_BOUND = `0.75`;
+const RADIUS = `0.25`;
 
 // wall bounds for circle in mesh coords
 // Equation Credit: [3]
 const GET_WALL_COORD_SRC = `
 float sqr(float x) {return x*x;}
-
 vec2 closestWall(vec2 a) {
   vec2 wall;
-  vec2 c = vec2(0.5, 0.5); // center of circle
-  float r = 0.25; // radius of circle
-
+  vec2 c = vec2(0.5, 0.5);  // center of circle
+  float r = 0.25;           // radius of circle
   wall = c + r * (a - c) / sqrt(abs(sqr((a - c).x) + sqr((a - c).y)));
   return wall;
 }
@@ -80,21 +96,20 @@ vec2 closestWall(vec2 a) {
 // bounding initial vec field in mesh vertices
 const PAINTER_OUTSIDE_SRC = `
 bool outside(float x, float y) {
-  return (x*x + y*y < 0.5);
+  // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
+  1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
 
-  // square wall code
-  // return (x > -0.5 && y > -0.5 && x < 0.5 && y < 0.5);
-}`;
-
+  return (x*x + y*y < ${RADIUS}*${RADIUS} * 4.0);
+}
+`;
 // bounding other forces in mesh coords
 const OUTSIDE_SRC = `
 bool outside(float x, float y) {
+  // return !(x > ${LOWER_BOUND} && y > ${LOWER_BOUND} && x < ${UPPER_BOUND} && y < ${UPPER_BOUND});
+
   float nx = x - 0.5;
   float ny = y - 0.5;
-  return (nx*nx + ny*ny > 0.25*0.25);
-
-  // square wall code
-  // return !(x > ${LOWER_BOUND} && y > ${LOWER_BOUND} && x < ${UPPER_BOUND} && y < ${UPPER_BOUND});
+  return (nx*nx + ny*ny > ${RADIUS}*${RADIUS});
 }`;
 
 // We'll use 120th of a second as each timestep
@@ -231,15 +246,26 @@ const makeFunctionPainter = (r, g, b, a, bound) => {
       }
     `;
   } else {
-    painterSrc =
-      `
+    painterSrc = `
       varying vec2 textureCoord;
+
+      bool outside(float x, float y, float r) {
+        // return (x > ${LOWER_BOUND * 2 - 1.0} && y > ${LOWER_BOUND * 2 -
+      1.0} && x < ${UPPER_BOUND * 2 - 1.0} && y < ${UPPER_BOUND * 2 - 1.0});
+
+        return (x*x + y*y < r*r);
+      }
+
       void main() {
         float x = 2.0 * textureCoord.x - 1.0;
         float y = 2.0 * textureCoord.y - 1.0;
-        gl_FragColor = vec4(` +
-      [r, g, b, a].join(",") +
-      `);
+        if (outside(x, y, 0.51)) {
+          gl_FragColor = vec4(${[r, g, b, a].join(",")});
+        } else if (outside(x, y, 0.6)) {
+          gl_FragColor = vec4(${CUP.join(",")});
+        } else {
+          gl_FragColor = vec4(${CHECKERS.join(",")});
+        }
       }
     `;
   }
@@ -326,12 +352,12 @@ const advectShader = (() => {
         vec2 pastCoord = textureCoord - (0.5 * deltaT * u);
 
         // Take the current color if outside
-        if (outside(pastCoord.x, pastCoord.y)) {
+        // if (outside(pastCoord.x, pastCoord.y)) {
           // FIXME: SAMPLING WALL COLOR
-          gl_FragColor = texture2D(inputTexture, textureCoord);
-        } else {
+          // gl_FragColor = texture2D(inputTexture, textureCoord);
+        // } else {
           gl_FragColor = texture2D(inputTexture, pastCoord);
-        }
+        // }
       }
     `
   );
@@ -389,25 +415,14 @@ const calcDivergence = (() => {
       varying vec2 textureCoord;
 
       ${OUTSIDE_SRC}
-      ${GET_WALL_COORD_SRC}
 
       vec2 u(vec2 coord) {
         // for outer wall collisions
         vec2 multiplier = vec2(1.0,1.0);
-        vec2 wall = closestWall(coord);
-
-        // circular wall collisions
-        // if (outside(coord.x, coord,y)) {
-        //   coord = wall; // stick to closest wall
-        //   // get opposing force
-        // }
-
-        // square wall collisions
         if (coord.x < ${LOWER_BOUND}) { coord.x = ${LOWER_BOUND}; multiplier.x = -1.0; }
         if (coord.x > ${UPPER_BOUND}) { coord.x = ${UPPER_BOUND}; multiplier.x = -1.0; }
         if (coord.y < ${LOWER_BOUND}) { coord.y = ${LOWER_BOUND}; multiplier.y = -1.0; }
         if (coord.y > ${UPPER_BOUND}) { coord.y = ${UPPER_BOUND}; multiplier.y = -1.0; }
-
         return multiplier * texture2D(velocity, coord).xy;
       }
 
@@ -452,12 +467,9 @@ const jacobiIterationForPressure = (() => {
       varying vec2 textureCoord;
 
       ${OUTSIDE_SRC}
-      ${GET_WALL_COORD_SRC}
 
       vec2 boundary (in vec2 coord) {
-        // coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
-
-        coord = closestWall(coord);
+        coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
         return coord;
       }
 
@@ -476,11 +488,7 @@ const jacobiIterationForPressure = (() => {
         vec2 B = boundary(textureCoord - vec2(0.0, 2.0 * epsilon)); // bottom
         float pressure = 0.25 * (d(textureCoord)+ p(L)+ p(R)+ p(T)+ p(B));
 
-        if (outside(textureCoord.x, textureCoord.y)) {
-          gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        } else {
-          gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
-        }
+        gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
       }
     `
   );
@@ -512,12 +520,9 @@ const subtractPressureGradient = (() => {
       varying vec2 textureCoord;
 
       ${OUTSIDE_SRC}
-      ${GET_WALL_COORD_SRC}
 
       vec2 boundary (in vec2 coord) {
-        // coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
-
-        coord = closestWall(coord);
+        coord = clamp(coord, ${LOWER_BOUND}, ${UPPER_BOUND});
         return coord;
       }
 
@@ -626,14 +631,18 @@ const addSplat = (function() {
 })();
 
 // Binding the initial forces to not be outside of boundaries
-var initVFnPainter = makeFunctionPainter(
+let initVFnPainter = makeFunctionPainter(
   options.initVFn[0],
   options.initVFn[1],
   0.0,
   0.0,
   true
 );
-var initCFnPainter = makeFunctionPainter(
+
+//
+// TODO: Draw textures
+//
+let initCFnPainter = makeFunctionPainter(
   options.initCFn[0],
   options.initCFn[1],
   options.initCFn[2]
@@ -670,10 +679,6 @@ var onScreen = function(middleIn) {
     return containerTop < canvasBottom && containerBottom > canvasTop;
   }
 };
-
-//
-// TODO: Draw cup
-//
 
 //
 // TODO: Update and draw functionality
@@ -768,7 +773,28 @@ canvas.addEventListener("dblclick", reset);
 
 // Mouse interaction onclick. Credit: [1]
 gl.onmousemove = function(ev) {
-  if (ev.dragging) {
+  function inside(x, y) {
+    let a = x / WIDTH - 0.5;
+    let b = y / HEIGHT - 0.5;
+
+    return !(a * a + b * b > 0.24 * 0.24);
+  }
+
+  if (ev.altKey && inside(ev.x, ev.y)) {
+    let addDyeSource = function(color, location) {
+      textures.color1.drawTo(function() {
+        addSplat(textures.color0, color.concat([0.0]), location, 0.0001);
+      });
+      textures.swap("color0", "color1");
+    };
+    addDyeSource(
+      [255 / 256, 253 / 256, 208 / 256],
+      [ev.x / WIDTH, 1 - ev.y / HEIGHT],
+      [ev.offsetX / WIDTH, 1.0 - ev.offsetY / HEIGHT]
+    );
+  }
+
+  if (ev.dragging && inside(ev.x, ev.y)) {
     textures.velocity1.drawTo(function() {
       addSplat(
         textures.velocity0,
