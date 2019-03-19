@@ -1,0 +1,11 @@
+@import url("https://fonts.googleapis.com/css?family=Questrial");
+
+body {
+  font-family: "Questrial", sans-serif;
+  color: #3a5750;
+  background-color: #f5cec9;
+}
+
+.center {
+  text-align: center;
+}
